@@ -1,56 +1,31 @@
-close all;
-clear;
-clc;
-%读入图像
-Image1=imread("image1.bmp");
-Image2=imread("image2.bmp");
-%显示图像
-figure
-subplot(121),imshow(Image1),title("模糊图像1");
-subplot(122),imshow(Image2),title("模糊图像2");
-%subplot(133),imshow(I3),title("合成后图像");
+load facets;
+x = imread('./14/02.bmp');  
+subplot(2,2,1);image(x);
+colormap(map);
+xlabel('(a)原始图像');
+axis square
 
-%ca 低频部分矩阵
-% 'h' 是水平方向
-% 'v' 是垂直方向
-% 'd' 是对角方向
-[ca1x,ch1x,cv1x,cd1x]=dwt2(Image1,'haar');
-[ca2x,ch2x,cv2x,cd2x]=dwt2(ca1x,'haar');%M=4 哈尔小波变换 2阶
-
-[ca1y,ch1y,cv1y,cd1y]=dwt2(Image2,'haar');
-[ca2y,ch2y,cv2y,cd2y]=dwt2(ca1y,'haar');%M=4
-
-%模糊部分是低频率部分，所以如果要还原细节需要将高频部分还原。
-%考虑左上角部分简单地平均，其余部分进行取max值。
-
-%处理
-ca2z=(ca2x+ca2y)./2; %2阶低频 部分
-
-ch2z=max(ch2x,ch2y);
-cv2z=max(cv2x,cv2y);
-cd2z=max(cd2x,cd2y);
-ca1z =idwt2(ca2z,ch2z,cv2z,cd2z,'haar');
-
-
-ch1z=max(ch1x,ch1y);
-cv1z=max(cv1x,cv1y);
-cd1z=max(cd1x,cd1y);
-Oimage=idwt2(ca1z,ch1z,cv1z,cd1z,'haar');
-OI=uint8(Oimage);
-
-figure,
-imshow(OI);
-
-function out=max(a,b) %%shape of a should equal shape of b
-    [i,j]=size(a);
-    out=zeros(i,j);
-    for x=1:i
-        for y=1:j
-             if abs(a(x,y))>abs(b(x,y))
-                 out(x,y)=a(x,y);
-             else
-                 out(x,y)=b(x,y);
-             end
-        end
-    end
-end
+%下面进行图像的去噪处理
+%用小波函数coif3对x进行2层小波分解
+[c,s] = wavedec2(x,2,'coif3');
+%提取小波分解中第一层的低频图像，即实现了低通滤波去噪
+%设置尺度向量
+n = [5,5];
+%设置阈值向量p
+p = [52,52];
+%对三个方向高频系数进行阈值处理
+nc = wthcoef2('h',c,s,n,p,'s');
+nc = wthcoef2('v',nc,s,n,p,'s');
+nc = wthcoef2('d',nc,s,n,p,'s');
+%对新的小波分解结构[c,s]进行重构
+x1 = waverec2(nc,s,'coif3');
+subplot(2,2,3);image(x1);
+colormap(map);
+xlabel('(c)第一次去噪图像');
+axis square
+%对nc再次进行滤波去噪
+xx = wthcoef2('v',nc,s,n,p,'s');
+x2 = waverec2(xx,s,'coif3');
+subplot(2,2,4);image(x2);
+colormap(map);
+xlabel('(d)第二次去噪图像');
